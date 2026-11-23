@@ -1,6 +1,6 @@
 # Window smoke simulation
 
-How can one window let warm air out and cool air in at the same time? This simulation follows air, heat, and smoke through an open window in 3D. A movable source releases smoke so you can see where the air carries it. You can change the window angle, add wind, or open a second vent and watch the exchange change.
+The simulated fluid dynamics of a moveable source releasing smoke near a window. You can change the window angle, temp parameters, add wind, or open a second vent and watch the exchange change.
 
 ## Run it locally
 
@@ -17,19 +17,12 @@ python -m pycfd.server --grid fast
 
 Open [the local viewer](http://127.0.0.1:8080/). The first launch compiles the C solver automatically. Press Ctrl+C in Terminal to stop the server. For later runs, activate the same environment and repeat the last command.
 
-## Try the cold-day example
-
-The **Cold Day** preset starts with a 3.6 × 3.0 × 2.5 m room at 20 °C and still outdoor air at 5 °C. The window opening is 0.9 m wide and 1.2 m tall, with its sill 0.9 m above the floor. The left-hinged window opens outward to 45°. The rear vent starts closed.
-
-1. Choose **Temp** in the 2D view and leave **Vec** checked to show airflow arrows. In the vertical **X–Z** slice through the window, look for warmer air leaving near the top and cooler air entering near the sill.
-2. Read **Q** in the top bar. A reading of **145/145 L/s** means 145 litres of air leave each second while the same volume enters. The net flow is zero, but the room is exchanging air. **z₀** marks the height where the flow, averaged across the width of the window, changes direction. A dash means the solver found no crossing.
-3. Choose **Smoke** and click a slice to move the source. Drag in the 3D view to rotate and scroll to zoom. For a comparison, switch to **Hot Summer** and watch what happens to the arrows when the outdoor air is warmer than the room.
 
 ## What the solver computes
 
-The model divides the room, the window opening, and the air outside into small cubes. Each cube holds a temperature, pressure, and smoke concentration. The solver stores air velocity on the faces between cubes. Multiplying the speed through a face by its area gives the volume of air crossing it per second. Walls and the angled window panel block flow between neighbouring cubes. Air can enter or leave at the far edges of the outdoor region, where a damping layer reduces the influence of the artificial boundary.
+The model discretises the room, the window opening, and the air outside.Each cube holds a temperature, pressure, and smoke concentration. The solver stores air velocity on the faces between cubes. Multiplying the speed through a face by its area gives the volume of air crossing it per second. Air can enter or leave at the far edges of the outdoor region, where a damping layer reduces the influence of the artificial boundary.
 
-The smoke field is a relative concentration. The source adds smoke and nudges the nearby air toward the source temperature. With the default settings, a warm plume rises because of that heat. The **Dense Smoke** preset also gives the smoke itself extra weight. The model prescribes what the source releases and does not simulate combustion.
+The smoke field is a relative concentration. The source adds smoke and nudges the nearby air toward the source temperature. With the default settings, a warm plume rises because of that heat. The **Dense Smoke** preset also gives the smoke itself extra weight. The model prescribes a generic source and does not simulate combustion.
 
 ### Governing equations
 
