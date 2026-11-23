@@ -880,7 +880,7 @@ class CFDRequestHandler(BaseHTTPRequestHandler):
         try:
             target = (WEB_DIR / rel).resolve()
             web_root = WEB_DIR.resolve()
-            if not str(target).startswith(str(web_root)):
+            if not target.is_relative_to(web_root):
                 self._send_json({"error": "Forbidden"}, status=HTTPStatus.FORBIDDEN)
                 return
             if not target.is_file():

@@ -1,60 +1,85 @@
-# smoke-window-sim
+# Window smoke simulation
 
-3D incompressible Boussinesq Large Eddy Simulation (LES) modeling smoke transport and buoyancy-driven natural ventilation between a confined UK room and an open exterior atmosphere through an angled casement window.
+How can one window let warm air out and cool air in at the same time? This simulation follows air, heat, and smoke through an open window in 3D. A movable source releases smoke so you can see where the air carries it. You can change the window angle, add wind, or open a second vent and watch the exchange change.
 
-The core CFD solver is written in multithreaded **C99** (Apple Silicon ARM64 NEON + GCD, strict FP64 physics with a mixed-precision FP32 Multigrid preconditioner), wrapped in **Python (`ctypes` + zero-copy NumPy views)**, with a zero-dependency local HTTP binary streamer and a minimal **WebGL2 volumetric + 2D cross-section** scientific frontend.
+## Run it locally
 
-*(The earlier 2D JavaScript prototype is preserved in git history at commit `58b5b80`.)*
+You need an Apple Silicon Mac, Python 3.9 or newer, and Apple Clang. The C solver uses Apple’s threading library and the build targets the M3 processor. If Clang is missing, run `xcode-select --install` and let the installation finish. Use a browser with WebGL2 for the 3D view.
 
-## Physics & Numerical Methods
-
-- **Governing Equations (`csrc/advect_les.c`, `csrc/step.c`)**:
-  - 3D Marker-and-Cell (MAC) staggered finite-volume grid in hydrostatic perturbation form ($\theta = T - T_{\text{out}}$, $\phi = (p - p_{\text{hyd,out}}(z))/\rho_0$, reference state $T_{\text{ref}} = T_{\text{out}}$), so quiescent ambient outdoor air sits in exact equilibrium ($\mathbf{b} \equiv 0$, $\phi = 0$).
-  - 2nd-order flux-conservative TVD finite-volume advection (Van Leer limiter for momentum, Monotonized Central for temperature and smoke) with 2-stage hydrostatic-preserving RK2 / divergence-free SSP-RK2 and adaptive face-max 3D CFL timestepping.
-  - **Smagorinsky–Lilly buoyancy-stratified LES** ($\text{Pr}_t = \text{Sc}_t = 0.7$) with Mason–Thomson wall damping, conservative variable-viscosity stress divergence $\nabla \cdot (2\nu_{\text{eff}}\mathbf{S})$, and Werner–Wengle wall shear.
-- **Open Exterior & Geometry Boundary Conditions (`csrc/bc.c`, `csrc/grid_geom.c`)**:
-  - **NIST FDS / Dong (2014) energy-stable Bernoulli OPEN boundary conditions** across the exterior far-field faces ($+X, \pm Y, +Z$) plus a thin 5-cell implicit Rayleigh sponge layer to prevent backflow blow-ups and boundary reflections.
-  - Standard UK room (`3.6 × 3.0 × 2.5 m`), masonry reveal, optional rear doorway/vent hydrostatic Bernoulli reservoir ($\Delta P$), and outward-swinging UK casement sash (left-hung, right-hung, or top-hung awning, $0^\circ\text{–}90^\circ$) represented via **dual-segment face blocking** for strictly zero diagonal leakage.
-- **Elliptic Pressure Solver (`csrc/poisson_mg.c`)**:
-  - Strict FP64 Flexible Conjugate Gradient preconditioned by a symmetric **FP32 Face-Aware Galerkin Geometric Multigrid V-cycle** with bit-packed Level-0 stencils, ARM64 NEON SIMD kernels, fused Red-only residual/restriction, and BFS pure-Neumann nullspace handling.
-
-## Quick Start
-
-Requires Python 3.9+, `numpy`, and `clang` (macOS Apple Silicon / Clang).
+From the repository folder, run the following commands in Terminal.
 
 ```sh
-# 1. Compile libcfd3d.dylib (also compiles automatically on first import)
-python3 -m pycfd.build
-
-# 2. Launch the live 3D simulation server
-python3 -m pycfd.server --port 8080 --grid fast
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install numpy
+python -m pycfd.server --grid fast
 ```
 
-Open **`http://127.0.0.1:8080/`** in your browser.
-- **3D view**: Drag to orbit, Shift+Drag to pan, scroll to zoom.
-- **2D cross-sections (`X–Z`, `X–Y`, `Y–Z`)**: Hover to probe `(x, y, z)` field/velocity values; click or drag directly on any slice to reposition the 3D smoke source.
+Open [the local viewer](http://127.0.0.1:8080/). The first launch compiles the C solver automatically. Press Ctrl+C in Terminal to stop the server. For later runs, activate the same environment and repeat the last command.
 
-## Python Scientific API & Verification Suite
+## Try the cold-day example
 
-Drive simulations directly from Python with zero-copy FP64 NumPy views:
+The **Cold Day** preset starts with a 3.6 × 3.0 × 2.5 m room at 20 °C and still outdoor air at 5 °C. The window opening is 0.9 m wide and 1.2 m tall, with its sill 0.9 m above the floor. The left-hinged window opens outward to 45°. The rear vent starts closed.
+
+1. Choose **Temp** in the 2D view and leave **Vec** checked to show airflow arrows. In the vertical **X–Z** slice through the window, look for warmer air leaving near the top and cooler air entering near the sill.
+2. Read **Q** in the top bar. A reading of **145/145 L/s** means 145 litres of air leave each second while the same volume enters. The net flow is zero, but the room is exchanging air. **z₀** marks the height where the flow, averaged across the width of the window, changes direction. A dash means the solver found no crossing.
+3. Choose **Smoke** and click a slice to move the source. Drag in the 3D view to rotate and scroll to zoom. For a comparison, switch to **Hot Summer** and watch what happens to the arrows when the outdoor air is warmer than the room.
+
+## What the solver computes
+
+The model divides the room, the window opening, and the air outside into small cubes. Each cube holds a temperature, pressure, and smoke concentration. The solver stores air velocity on the faces between cubes. Multiplying the speed through a face by its area gives the volume of air crossing it per second. Walls and the angled window panel block flow between neighbouring cubes. Air can enter or leave at the far edges of the outdoor region, where a damping layer reduces the influence of the artificial boundary.
+
+The smoke field is a relative concentration. The source adds smoke and nudges the nearby air toward the source temperature. With the default settings, a warm plume rises because of that heat. The **Dense Smoke** preset also gives the smoke itself extra weight. The model prescribes what the source releases and does not simulate combustion.
+
+### Governing equations
+
+**Airflow.** The solver treats air as incompressible. Each cell must pass on as much air as it receives. Temperature and smoke density affect the vertical force through the Boussinesq approximation.
+
+$$
+\nabla \cdot \mathbf{u} = 0
+$$
+
+$$
+\frac{\partial \mathbf{u}}{\partial t}
++ (\mathbf{u}\cdot\nabla)\mathbf{u}
+= -\nabla\phi + \nabla\cdot(2\nu_{\mathrm{eff}}\mathbf{S})
++ g(\beta\theta-\alpha_s c)\,\hat{\mathbf{z}} + \mathbf{f}_{\mathrm{jet}}
+$$
+
+Here $\mathbf{u}$ is air velocity. Reading the right-hand side from left to right gives four effects.
+
+- **Pressure** pushes air from high to low pressure. The solver uses the pressure difference from still outdoor air at the same height, divided by a reference density ($\phi$).
+- **Friction and mixing** transfer momentum between neighbouring regions. The effective viscosity $\nu_{\mathrm{eff}}$ includes turbulent mixing, and $\mathbf{S}$ is the local rate of strain.
+- **Buoyancy** acts vertically. Air warmer than outdoors feels an upward force set by its excess temperature $\theta$ and thermal expansion coefficient $\beta$. Smoke concentration $c$ adds a downward force when its density coefficient $\alpha_s$ is positive. Here $g$ is gravitational acceleration.
+- **The optional jet** pushes air near the smoke source in the chosen direction.
+
+**Heat and smoke.** Both travel with the air and spread by mixing. For either field $q$, the solver uses a transport equation with an effective diffusivity $D_q$ and a local source $s_q$.
+
+$$
+\frac{\partial q}{\partial t} + \nabla\cdot(\mathbf{u}q)
+= \nabla\cdot(D_q\nabla q) + s_q
+$$
+
+The emitter adds smoke fastest at its centre. If its local injection rate is $r$, the smoke source is $s_c=r$ and the temperature source is $s_\theta=r(\theta_{\mathrm{source}}-\theta)$. This lets the same emitter warm or cool the surrounding air.
+
+### Numerical choices
+
+- **Conservation.** A finite-volume method computes how much crosses each cell face. A two-stage Runge–Kutta method advances the fields in time. The step size adapts to air speed, diffusion, and buoyancy.
+- **Turbulence.** The grid resolves large eddies. A Smagorinsky–Lilly model estimates mixing by smaller eddies and accounts for the effects of nearby walls and vertical density changes. A finer grid captures smaller features and costs more per step.
+- **Pressure.** After predicting the velocity, the solver calculates a pressure correction to balance flow in every cell. It uses several grid resolutions to speed up that calculation. The main fields and pressure iteration use double precision, while the multigrid calculations use single precision.
+
+## Use the solver from Python
+
+The browser and Python use the same C solver in `csrc/`. The `pycfd/` package handles compilation, exposes the fields as NumPy arrays, and serves the viewer in `web/`. To get a flow measurement directly, run this in Python from the repository folder with the environment active.
 
 ```python
 from pycfd import CFD3DSolver
 
-with CFD3DSolver(grid="default", preset="cold_day", win_angle_deg=45.0) as sim:
-    m = sim.step_n(100)
-    smoke = sim.field_view("smoke")  # shape (nz, ny, nx), float64
-    print(f"Q_out={m['q_out']*1000:.1f} L/s, z_NPP={m['z_npp']:.2f} m, div={m['max_div']:.2e}")
+with CFD3DSolver(grid="fast", preset="cold_day") as sim:
+    metrics = sim.step_n(50)
+    print(f"After {metrics['sim_time']:.2f} s of simulated time:")
+    print(f"Outflow {1000 * metrics['q_out']:.1f} L/s")
+    print(f"Inflow  {1000 * metrics['q_in']:.1f} L/s")
 ```
 
-Run the 8-part physics, conservation, Linden exchange-flow, and long-horizon stability verification suite:
-
-```sh
-python3 -m pycfd.verify
-```
-
-## Project Structure
-
-- `csrc/` — C99 3D CFD solver (`cfd3d.h`, `grid_geom.c`, `bc.c`, `advect_les.c`, `poisson_mg.c`, `step.c`, `slices.c`)
-- `pycfd/` — Build helper (`build.py`), `ctypes`/NumPy wrapper (`solver.py`), stdlib binary HTTP server (`server.py`), V&V suite (`verify.py`)
-- `web/` — Bare-bones WebGL2 volumetric raymarcher (`viewer3d.js`), 2D slice plots (`slices2d.js`), and UI (`index.html`, `style.css`, `app.js`)
+To check the implementation, run `python -m pycfd.verify`. Its eight checks include whether still air stays still, smoke is conserved in a sealed room, the window panel blocks flow, and the direction of exchange reverses between winter and summer.
