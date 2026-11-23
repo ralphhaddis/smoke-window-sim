@@ -78,3 +78,26 @@ with CFD3DSolver(grid="fast", preset="cold_day") as sim:
 ```
 
 To check the implementation, run `python -m pycfd.verify`. Its eight checks include whether still air stays still, smoke is conserved in a sealed room, the window panel blocks flow, and the direction of exchange reverses between winter and summer.
+
+## Technical Assumptions
+
+- **Boussinesq Approximation**: Density variations are assumed small ($\Delta T / T_0 \ll 1$, $\alpha_s C \ll 1$) so density is constant ($\rho_0$) everywhere except in the vertical buoyancy term. Valid for typical room/outdoor temperature differences and dilute smoke, not for high-temperature fires or dense gas releases.
+- **Incompressible Low-Mach Flow**: Acoustic waves are filtered out ($\nabla \cdot \mathbf{u} = 0$); pressure acts instantaneously via the Poisson equation.
+- **Dilute Passive/Buoyant Scalar**: Smoke is modeled as a continuous concentration field $C \in [0, 1]$ without particle settling, coagulation, or radiative heat transfer.
+- **Adiabatic, Rigid Walls**: Room walls, floor, ceiling, and window sash are perfectly insulated ($\partial_n \theta = 0$) and impermeable ($\mathbf{u}\cdot\mathbf{n} = 0$) with algebraic Werner–Wengle wall shear.
+- **Uniform Ambient Exterior**: The outdoor atmosphere is assumed isothermal at $T_{\text{out}}$ with optional steady suburban power-law wind profile, ignoring urban buildings, trees, and gusty turbulence.
+
+## Limitations
+
+- **Grid Resolution & Thin Geometry**: Isotropic cells ($h \approx 5.5\text{–}10\text{ cm}$) resolve room-scale plumes and window exchange well, but cannot resolve thin thermal boundary layers along walls or fine-scale eddies smaller than $h$ (modeled via Smagorinsky–Lilly LES).
+- **Staircased / Face-Blocked Angled Sash**: Dual-segment face blocking guarantees zero diagonal leakage across the angled casement sash, but the discrete surface is staircased at cell scale rather than smooth sub-cell cut-cells.
+- **Domain Size**: The exterior buffer ($2.5\text{–}2.8\text{ m}$ in $+X$, $0.7\text{–}0.9\text{ m}$ in $\pm Y$, $1.5\text{–}1.9\text{ m}$ in $+Z$) is finite; Dong/Bernoulli OPEN BCs + a 5-cell Rayleigh sponge approximate an infinite atmosphere, but very strong plumes or wide wakes can still experience minor far-field truncation.
+- **Single-Room Topology**: Models one rectangular room with one exterior facade and an optional rear vent; multi-room networks or complex furniture are not included.
+
+## Possible Improvements & Why They Were Not Pursued
+
+- **Full Low-Mach Variable-Density Solver** (handling large $\Delta T$ / fire plumes): *Not pursued* because it requires solving a coupled thermodynamic pressure/energy system and variable-coefficient Poisson equation, roughly doubling memory and per-step compute for minimal gain in typical room-ventilation regimes.
+- **Cut-Cell / Immersed Boundary Method (IBM)** for smooth sub-cell angled sash & curved geometry: *Not pursued* due to small-cell CFL stiffness and complex MG-PCG operator stenciling; dual-segment face blocking achieves exact zero-leakage impermeability with simple, fast, symmetric stencils.
+- **Dynamic Smagorinsky or WALE + Lagrangian Particle Tracking**: *Not pursued* to keep the solver fast enough for interactive real-time 3D execution (~10–30 ms/step on Apple M3); static Smagorinsky–Lilly with Mason–Thomson wall damping and scalar concentration $C$ captures the primary buoyancy physics at a fraction of the cost.
+- **Adaptive Mesh Refinement (AMR) / Larger Exterior Domain**: *Not pursued* because uniform structured grids map cleanly to cache-friendly unit-stride C99 loops, ARM64 NEON SIMD, and Geometric Multigrid, fitting within the 8 GB RAM / real-time compute budget.
+- **Conjugate Heat Transfer & Solar Radiation**: *Not pursued* as it adds wall-conduction meshes and view-factor radiation solves that are secondary to short-timescale smoke transport.
