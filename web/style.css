@@ -1,0 +1,350 @@
+:root {
+  --bg: #0e0f11;
+  --panel: #131518;
+  --line: #25282e;
+  --line-hi: #3b404a;
+  --fg: #d6dae0;
+  --dim: #7b828e;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.3;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100vh;
+}
+
+/* Single Flat Top Bar */
+#bar {
+  height: 29px;
+  flex: 0 0 29px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+  overflow-x: auto;
+}
+
+.bar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn, .sel, .sel-flat {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  height: 21px;
+  padding: 0 6px;
+  outline: none;
+  cursor: pointer;
+}
+
+.btn:hover, .sel:hover, .sel-flat:hover {
+  border-color: var(--line-hi);
+}
+
+.sel-flat {
+  height: 19px;
+  padding: 0 4px;
+  font-size: 10.5px;
+}
+
+#readout {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+  font-size: 10.5px;
+}
+
+#readout b {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+/* Main Split */
+#body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+#views {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* 3D Canvas Pane */
+#view-3d {
+  flex: 1.35 1 0;
+  position: relative;
+  min-height: 180px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+#canvas-3d {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+
+#canvas-3d:active {
+  cursor: grabbing;
+}
+
+#hud-3d {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(14, 15, 17, 0.78);
+  border: 1px solid var(--line);
+  padding: 2px 6px;
+}
+
+.sep {
+  color: var(--line-hi);
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  cursor: pointer;
+  padding: 1px 2px;
+}
+
+.link-btn:hover {
+  color: var(--fg);
+}
+
+.fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* 2D Slices Pane */
+#view-2d {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
+  background: var(--bg);
+}
+
+#bar-2d {
+  flex: 0 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.chk-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.cb {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+#canvas-colorbar {
+  border: 1px solid var(--line);
+  width: 96px;
+  height: 8px;
+}
+
+#probe-readout {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#slices {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1.12fr 1.12fr 0.86fr;
+  gap: 1px;
+  background: var(--line);
+  min-height: 0;
+}
+
+.slice {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  min-width: 0;
+  min-height: 0;
+}
+
+.slice-bar {
+  flex: 0 0 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  font-size: 10px;
+  color: var(--dim);
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+.slice-bar input[type="range"] {
+  margin-left: auto;
+  width: 58px;
+}
+
+.slice-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.slice-wrap canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: crosshair;
+}
+
+/* Flat Right Parameter Table */
+#params {
+  flex: 0 0 226px;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  overflow-y: auto;
+  padding: 4px 8px 12px;
+}
+
+.sec {
+  margin-top: 10px;
+  margin-bottom: 4px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--line);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: var(--dim);
+}
+
+.sec:first-child {
+  margin-top: 2px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 38px 1fr 48px;
+  align-items: center;
+  gap: 6px;
+  height: 21px;
+}
+
+.row label {
+  color: var(--dim);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.row span {
+  text-align: right;
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+
+.chk-row {
+  grid-template-columns: 1fr auto;
+}
+
+.sel-row {
+  grid-template-columns: 44px 1fr;
+}
+
+input[type="range"] {
+  width: 100%;
+  height: 12px;
+  accent-color: #9aa5b4;
+  cursor: pointer;
+}
+
+input[type="checkbox"] {
+  accent-color: #9aa5b4;
+  cursor: pointer;
+}
+
+#more-opts {
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 5px;
+}
+
+#more-opts summary {
+  font-size: 10px;
+  color: var(--dim);
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 4px;
+}
+
+#more-opts summary:hover {
+  color: var(--fg);
+}

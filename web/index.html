@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D CFD</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="shell">
+    <header id="bar">
+      <div class="bar-group">
+        <button id="btn-play" class="btn">Pause</button>
+        <button id="btn-step" class="btn">Step</button>
+        <button id="btn-reset" class="btn">Reset</button>
+      </div>
+
+      <div class="bar-group">
+        <select id="sel-speed" class="sel" title="Simulation speed">
+          <option value="0.25">0.25×</option>
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+          <option value="4">4×</option>
+          <option value="0">Max</option>
+        </select>
+        <select id="sel-preset" class="sel" title="Scenario">
+          <option value="cold_day">Cold Day</option>
+          <option value="hot_summer">Hot Summer</option>
+          <option value="crosswind">Crosswind</option>
+          <option value="pressurized_cross_vent">Cross-Vent +3Pa</option>
+          <option value="awning_rain">Awning + Wind</option>
+          <option value="heavy_cold_smoke">Dense Smoke</option>
+          <option value="quiescent">Quiescent</option>
+          <option value="closed_window">Closed 0°</option>
+        </select>
+        <select id="sel-grid" class="sel" title="Grid resolution">
+          <option value="turbo">64×48×40</option>
+          <option value="fast">80×64×56</option>
+          <option value="default">96×64×64</option>
+          <option value="high">128×96×80</option>
+        </select>
+      </div>
+
+      <div id="readout">
+        <span>t=<b id="top-time">0.00</b>s</span>
+        <span id="top-rt">1.0×</span>
+        <span>Q=<b id="m-qout">0</b>/<b id="m-qin">0</b>L/s</span>
+        <span>z₀=<b id="m-znpp">—</b></span>
+        <span>T̄=<b id="m-tin">20.0</b>°C</span>
+        <span>|u|=<b id="m-maxu">0.00</b></span>
+        <span>∇·u=<b id="m-div">0.0e+0</b></span>
+        <span><b id="top-step-ms">0.0</b>ms</span>
+      </div>
+    </header>
+
+    <main id="body">
+      <section id="views">
+        <!-- 3D Viewport -->
+        <div id="view-3d">
+          <canvas id="canvas-3d"></canvas>
+          <div id="webgl-fallback" class="fallback hidden">WebGL2 unavailable</div>
+          <div id="hud-3d">
+            <select id="sel-vol-field" class="sel-flat">
+              <option value="smoke">Smoke</option>
+              <option value="temp">Temp</option>
+              <option value="speed">Speed</option>
+              <option value="vorticity">Vort</option>
+            </select>
+            <span class="sep">|</span>
+            <button class="link-btn" data-cam="iso">Iso</button>
+            <button class="link-btn" data-cam="side">Side</button>
+            <button class="link-btn" data-cam="top">Top</button>
+            <button class="link-btn" data-cam="outside">Out</button>
+          </div>
+        </div>
+
+        <!-- 2D Cross-Sections -->
+        <div id="view-2d">
+          <div id="bar-2d">
+            <select id="sel-slice-field" class="sel-flat">
+              <option value="smoke">Smoke</option>
+              <option value="temp">Temp (°C)</option>
+              <option value="speed">|u| (m/s)</option>
+              <option value="pressure">p' (Pa)</option>
+              <option value="vorticity">|ω| (1/s)</option>
+              <option value="nu_sgs">ν_sgs</option>
+            </select>
+            <label class="chk-inline"><input id="chk-vectors" type="checkbox" checked />Vec</label>
+            <div class="cb">
+              <span id="cb-min">0.00</span>
+              <canvas id="canvas-colorbar" width="96" height="8"></canvas>
+              <span id="cb-max">1.00</span>
+              <span id="cb-unit"></span>
+            </div>
+            <span id="probe-readout"></span>
+          </div>
+
+          <div id="slices">
+            <div class="slice">
+              <div class="slice-bar">
+                <span>X–Z</span>
+                <span id="lbl-xz-pos">y=2.64m</span>
+                <input id="rng-xz-j" type="range" min="0" max="63" value="32" />
+              </div>
+              <div class="slice-wrap"><canvas id="canvas-xz"></canvas></div>
+            </div>
+            <div class="slice">
+              <div class="slice-bar">
+                <span>X–Y</span>
+                <span id="lbl-xy-pos">z=1.50m</span>
+                <input id="rng-xy-k" type="range" min="0" max="55" value="18" />
+              </div>
+              <div class="slice-wrap"><canvas id="canvas-xy"></canvas></div>
+            </div>
+            <div class="slice">
+              <div class="slice-bar">
+                <span>Y–Z</span>
+                <span id="lbl-yz-pos">x=3.60m</span>
+                <input id="rng-yz-i" type="range" min="0" max="79" value="44" />
+              </div>
+              <div class="slice-wrap"><canvas id="canvas-yz"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bare-bones Flat Parameter Table -->
+      <aside id="params">
+        <div class="sec">SOURCE</div>
+        <div class="row chk-row"><label for="inp-smoke-on">Active</label><input id="inp-smoke-on" type="checkbox" checked /></div>
+        <div class="row"><label for="inp-sx">x</label><input id="inp-sx" type="range" min="0.20" max="6.00" step="0.05" value="1.80" /><span id="out-sx">1.80m</span></div>
+        <div class="row"><label for="inp-sy">y</label><input id="inp-sy" type="range" min="0.10" max="2.90" step="0.05" value="1.50" /><span id="out-sy">1.50m</span></div>
+        <div class="row"><label for="inp-sz">z</label><input id="inp-sz" type="range" min="0.15" max="2.35" step="0.05" value="1.10" /><span id="out-sz">1.10m</span></div>
+        <div class="row"><label for="inp-tsmoke">T_s</label><input id="inp-tsmoke" type="range" min="0" max="60" step="0.5" value="30" /><span id="out-tsmoke">30.0°C</span></div>
+        <div class="row"><label for="inp-alpha">α_s</label><input id="inp-alpha" type="range" min="0" max="0.25" step="0.005" value="0" /><span id="out-alpha">0.000</span></div>
+        <div class="row"><label for="inp-sjet">v_jet</label><input id="inp-sjet" type="range" min="0" max="2.5" step="0.05" value="0" /><span id="out-sjet">0.00m/s</span></div>
+
+        <div class="sec">WINDOW</div>
+        <div class="row sel-row">
+          <label for="inp-hinge">Hinge</label>
+          <select id="inp-hinge" class="sel-flat">
+            <option value="0">Left</option>
+            <option value="1">Right</option>
+            <option value="2">Top</option>
+          </select>
+        </div>
+        <div class="row"><label for="inp-angle">θ</label><input id="inp-angle" type="range" min="0" max="90" step="1" value="45" /><span id="out-angle">45°</span></div>
+        <div class="row"><label for="inp-win-w">W</label><input id="inp-win-w" type="range" min="0.40" max="2.00" step="0.05" value="0.90" /><span id="out-win-w">0.90m</span></div>
+        <div class="row"><label for="inp-win-h">H</label><input id="inp-win-h" type="range" min="0.40" max="1.80" step="0.05" value="1.20" /><span id="out-win-h">1.20m</span></div>
+        <div class="row"><label for="inp-win-sill">Sill</label><input id="inp-win-sill" type="range" min="0.30" max="1.60" step="0.05" value="0.90" /><span id="out-win-sill">0.90m</span></div>
+        <div class="row chk-row"><label for="inp-vent">Rear vent</label><input id="inp-vent" type="checkbox" /></div>
+
+        <div class="sec">ENVIRONMENT</div>
+        <div class="row"><label for="inp-tin">T_in</label><input id="inp-tin" type="range" min="0" max="35" step="0.5" value="20" /><span id="out-tin">20.0°C</span></div>
+        <div class="row"><label for="inp-tout">T_out</label><input id="inp-tout" type="range" min="-15" max="42" step="0.5" value="5" /><span id="out-tout">5.0°C</span></div>
+        <div class="row"><label for="inp-dp">ΔP</label><input id="inp-dp" type="range" min="-8" max="8" step="0.2" value="0" /><span id="out-dp">0.0Pa</span></div>
+        <div class="row"><label for="inp-wspd">Wind</label><input id="inp-wspd" type="range" min="0" max="6" step="0.1" value="0" /><span id="out-wspd">0.0m/s</span></div>
+        <div class="row"><label for="inp-wdir">Dir</label><input id="inp-wdir" type="range" min="-180" max="180" step="5" value="0" /><span id="out-wdir">0°</span></div>
+
+        <details id="more-opts">
+          <summary>More</summary>
+          <div class="row"><label for="inp-srate">Rate</label><input id="inp-srate" type="range" min="0.01" max="0.25" step="0.005" value="0.08" /><span id="out-srate">0.080</span></div>
+          <div class="row"><label for="inp-sazim">Azim</label><input id="inp-sazim" type="range" min="-180" max="180" step="5" value="0" /><span id="out-sazim">0°</span></div>
+          <div class="row"><label for="inp-selev">Elev</label><input id="inp-selev" type="range" min="-60" max="90" step="5" value="0" /><span id="out-selev">0°</span></div>
+          <div class="row"><label for="rng-vol-density">Gain</label><input id="rng-vol-density" type="range" min="0.2" max="3.5" step="0.05" value="1.35" /><span id="out-gain">1.35</span></div>
+          <div class="row chk-row"><label for="inp-wabl">ABL wind</label><input id="inp-wabl" type="checkbox" /></div>
+          <div class="row chk-row"><label for="chk-cutplanes">Cut lines</label><input id="chk-cutplanes" type="checkbox" checked /></div>
+          <div class="row chk-row"><label for="chk-masonry">Walls</label><input id="chk-masonry" type="checkbox" checked /></div>
+          <div class="row chk-row"><label for="chk-autoscale">Auto scale</label><input id="chk-autoscale" type="checkbox" /></div>
+        </details>
+      </aside>
+    </main>
+  </div>
+
+  <script src="viewer3d.js"></script>
+  <script src="slices2d.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
