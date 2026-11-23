@@ -2,6 +2,8 @@
 
 The simulated fluid dynamics of a moveable source releasing smoke near a window. You can change the window angle, temp parameters, add wind, or open a second vent and watch the exchange change.
 
+![Simulator showing a 3D smoke plume leaving the window, with three cross-sections and arrows showing the airflow below](docs/simulation-preview.png)
+
 ## Run it locally
 
 You need an Apple Silicon Mac, Python 3.9 or newer, and Apple Clang. The C solver uses Apple’s threading library and the build targets the M3 processor. If Clang is missing, run `xcode-select --install` and let the installation finish. Use a browser with WebGL2 for the 3D view.
